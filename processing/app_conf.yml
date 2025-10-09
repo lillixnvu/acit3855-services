@@ -1,0 +1,10 @@
+version: 1
+datastore:
+  filename: data.json
+scheduler:
+  interval: 5
+eventstores:
+  search:
+    url: http://localhost:8090/product/search
+  purchase:
+    url: http://localhost:8090/product/sold

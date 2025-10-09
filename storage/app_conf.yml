@@ -1,0 +1,7 @@
+version: 1
+datastore:
+  user: lillian
+  password: Password
+  hostname: localhost
+  port: 3307
+  db: grocery
