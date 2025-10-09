@@ -74,9 +74,9 @@ def add_purchase_readings(body):
 def get_search_readings(start_timestamp, end_timestamp):
     session = make_session()
 
-    start = datetime.strptime(start_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=None)
-    end = datetime.strptime(end_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=None)
-
+    start = datetime.strptime(start_timestamp.rstrip('Z'), "%Y-%m-%dT%H:%M:%S.%f")
+    end = datetime.strptime(end_timestamp.rstrip('Z'), "%Y-%m-%dT%H:%M:%S.%f")
+    
     statement = select(SearchReading).where(
         SearchReading.date_created >= start
     ).where(
@@ -86,15 +86,13 @@ def get_search_readings(start_timestamp, end_timestamp):
     results = [result.to_dict() for result in session.execute(statement).scalars().all()]
     session.close()
 
-    logger.info(f"Found {len(results)} purchase readings between {start} and {end}")
-
     return results, 200
 
 def get_purchase_readings(start_timestamp, end_timestamp):
     session = make_session()
 
-    start = datetime.strptime(start_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=None)
-    end = datetime.strptime(end_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=None)
+    start = datetime.strptime(start_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
+    end = datetime.strptime(end_timestamp, "%Y-%m-%dT%H:%M:%S.%fZ")
 
     statement = select(PurchaseReading).where(
         PurchaseReading.date_created >= start
