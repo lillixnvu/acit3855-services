@@ -4,7 +4,7 @@ info:
   version: "1.0.0"
   title: Stats API
   contact:
-    email: lvu17@bcit.ca
+    email: lvu17@mybcit.ca
 
 paths:
   /stats:
