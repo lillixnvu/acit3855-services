@@ -9,10 +9,10 @@ import json
 import os
 import httpx
 
-with open('app_conf.yml', 'r') as f:
+with open('/config/app_conf.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
 
-with open('log_conf.yml', 'r') as f:
+with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
 
 logger = logging.getLogger('basicLogger')

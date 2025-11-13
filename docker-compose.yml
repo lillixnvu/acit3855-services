@@ -76,8 +76,8 @@ services:
     ports:
       - "8100:8100"
     volumes:
-      - ./config/app_conf.yml:/config/app_conf.yml
-      - ./config/log_conf.yml:/config/log_conf.yml
+      - ./config/processing/app_conf.yml:/config/app_conf.yml
+      - ./config/processing/log_conf.yml:/config/log_conf.yml
       - ./logs:/logs
       - ./data/processing:/data
 
