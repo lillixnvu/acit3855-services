@@ -14,7 +14,6 @@ with open('app_conf.yml', 'r') as f:
 
 with open('log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_config)
 
 logger = logging.getLogger('basicLogger')
 
@@ -55,6 +54,7 @@ def populate_stats():
     current_timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
     
     search_url = app_config['eventstores']['search']['url']
+    logger.info(f"Search URL: {search_url}")
     search_response = httpx.get(
         search_url,
         params={'start_timestamp': last_updated, 'end_timestamp': current_timestamp}
@@ -113,4 +113,4 @@ app.add_api("openapi.yml")
 
 if __name__ == "__main__":
     init_scheduler()
-    app.run(port=8100)
+    app.run(port=8100, host="0.0.0.0")

@@ -1,7 +1,6 @@
 import connexion
 from connexion import NoContent
 from datetime import datetime
-import httpx
 import time
 import yaml
 import logging
@@ -10,15 +9,14 @@ from pykafka import KafkaClient
 import json
 
 
+with open('/config/app_conf.yml', 'r') as f:
+    app_config = yaml.safe_load(f.read())
 
-with open('log_conf.yml', 'r') as f:
+with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_config)
 
 logger = logging.getLogger('basicLogger')
 
-with open('app_conf.yml', 'r') as f:
-    app_config = yaml.safe_load(f.read())
 
 # inside_event = app_config['events']
 client = KafkaClient(hosts=f"{app_config['events']['hostname']}:{app_config['events']['port']}")
@@ -103,4 +101,4 @@ app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("grocery_api.yml")
 
 if __name__ == "__main__":
-    app.run(port=8080)
+    app.run(port=8080, host="0.0.0.0")

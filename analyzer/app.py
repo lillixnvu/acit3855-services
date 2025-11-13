@@ -5,14 +5,11 @@ import logging.config
 from pykafka import KafkaClient
 import json
 
-# Load logging configuration
-with open('log_conf.yml', 'r') as f:
-    log_config = yaml.safe_load(f.read())
-    logging.config.dictConfig(log_config)
-
-# Load app configuration
-with open('app_conf.yml', 'r') as f:
+with open('/config/app_conf.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
+
+with open('/config/log_conf.yml', 'r') as f:
+    log_config = yaml.safe_load(f.read())
 
 logger = logging.getLogger('basicLogger')
 
@@ -127,4 +124,4 @@ app = connexion.FlaskApp(__name__, specification_dir='')
 app.add_api("grocery_api.yml")
 
 if __name__ == "__main__":
-    app.run(port=8110)
+    app.run(port=8110, host="0.0.0.0")

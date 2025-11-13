@@ -1,0 +1,7 @@
+connexion[flask,uvicorn,swagger-ui]
+pykafka
+SQLAlchemy
+mysqlclient
+setuptools
+pymysql
+cryptography

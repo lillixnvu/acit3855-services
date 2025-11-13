@@ -1,0 +1,4 @@
+APScheduler
+connexion[flask,uvicorn,swagger-ui]
+httpx
+setuptools
