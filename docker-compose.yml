@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   zookeeper:
     image: wurstmeister/zookeeper
@@ -21,6 +22,13 @@ services:
       - ./data/kafka:/kafka
     depends_on:
       - zookeeper
+    # --- ADDED THIS BLOCK ---
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   db:
     image: mysql:8.0
@@ -34,13 +42,21 @@ services:
       - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+    # Added healthcheck for DB (Good practice for storage service)
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   receiver:
     build:
       context: ./receiver
       dockerfile: Dockerfile
     depends_on:
-      - kafka
+      # --- UPDATED THIS BLOCK ---
+      kafka:
+        condition: service_healthy
     environment:
       - TARGET_ENV=test
     ports:
@@ -56,8 +72,11 @@ services:
       context: ./storage
       dockerfile: Dockerfile
     depends_on:
-      - db
-      - kafka
+      db:
+        condition: service_healthy
+      # --- UPDATED THIS BLOCK ---
+      kafka:
+        condition: service_healthy
     environment:
       - TARGET_ENV=test
     ports:
@@ -90,7 +109,9 @@ services:
       context: ./analyzer
       dockerfile: Dockerfile
     depends_on:
-      - kafka
+      # --- UPDATED THIS BLOCK ---
+      kafka:
+        condition: service_healthy
     environment:
       - TARGET_ENV=test
     ports:
