@@ -12,7 +12,7 @@ handlers:
     class: logging.FileHandler
     level: DEBUG
     formatter: simple
-    filename: /logs/processing.log
+    filename: /logs/processing/processing.log
 loggers:
   basicLogger:
     level: DEBUG

@@ -1,24 +1,32 @@
 version: 1
+disable_existing_loggers: False
+
 formatters:
   simple:
     format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
 handlers:
   console:
     class: logging.StreamHandler
-    level: DEBUG
+    level: INFO
     formatter: simple
     stream: ext://sys.stdout
+  
   file:
     class: logging.FileHandler
-    level: DEBUG
+    level: INFO
     formatter: simple
-    filename: /logs/storage.log
+    filename: /logs/storage/storage.log
+
+root:
+  level: INFO
+  handlers: [console, file]
+
 loggers:
   basicLogger:
-    level: DEBUG
+    level: INFO
     handlers: [console, file]
     propagate: no
-root:
-  level: DEBUG
-  handlers: [console]
-disable_existing_loggers: false
+  
+  pykafka:
+    level: WARNING  

@@ -1,0 +1,199 @@
+openapi: 3.0.0
+info:
+  description: This API provides event info
+  version: "1.0.0"
+  title: Analyzer API
+  contact:
+    email: lvu17@bcit.ca
+
+paths:
+  /product/search:
+    get:
+      summary: Gets a search reading from history
+      operationId: app.get_search_readings
+      description: Gets search readings from the event store
+      parameters:
+        - name: index
+          in: query
+          required: true
+          description: Gets the search reading at the index in the event store
+          schema:
+            type: integer
+            example: 100
+      responses:
+        '200':
+          description: Successfully returned a search reading
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchReading'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /product/sold:
+    get:
+      summary: Gets a sold reading from history
+      operationId: app.get_purchase_readings
+      description: Gets sold readings from the event store
+      parameters:
+        - name: index
+          in: query
+          required: true
+          description: Gets the sold reading at the index in the event store
+          schema:
+            type: integer
+            example: 100
+      responses:
+        '200':
+          description: Successfully returned a sold reading
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseReading'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /stats:
+    get:
+      summary: Gets the reading stats
+      operationId: app.get_reading_stats
+      description: Gets the stats of the history events
+      responses:
+        '200':
+          description: Successfully returned the statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+components:
+  schemas:
+    PurchaseReading:
+      type: object
+      required:
+        - trace_id
+        - store_id
+        - store_name
+        - product_id
+        - purchase_count
+        - batch_timestamp
+        - reading_timestamp
+      properties:
+        trace_id:
+          type: integer
+          format: int64
+          example: 1727780400000000000
+        store_id:
+          type: string
+          format: uuid
+          example: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+        store_name:
+          type: string
+          example: "Downtown Store"
+        product_id:
+          type: string
+          example: "P98765"
+        purchase_count:
+          type: integer
+          format: int64
+          example: 743892748932
+        batch_timestamp:
+          type: string
+          format: date-time
+          example: "2016-08-29T09:12:33.001Z"
+        reading_timestamp:
+          type: string
+          format: date-time
+          example: "2016-08-29T09:12:33.001Z"
+
+    SearchReading:
+      type: object
+      required:
+        - trace_id
+        - store_id
+        - store_name
+        - product_id
+        - search_count
+        - batch_timestamp
+        - reading_timestamp
+      properties:
+        trace_id:
+          type: integer
+          format: int64
+          example: 1727780400000000000
+        store_id:
+          type: string
+          format: uuid
+          example: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+        store_name:
+          type: string
+          example: "Downtown Store"
+        product_id:
+          type: string
+          example: "P98765"
+        search_count:
+          type: integer
+          format: int64
+          example: 743892748932
+        batch_timestamp:
+          type: string
+          format: date-time
+          example: "2016-08-29T09:12:33.001Z"
+        reading_timestamp:
+          type: string
+          format: date-time
+          example: "2016-08-29T09:12:33.001Z"
+
+    Stats:
+      type: object
+      required:
+        - num_purchase_readings
+        - num_search_readings
+      properties:
+        num_purchase_readings:
+          type: integer
+          example: 100
+        num_search_readings:
+          type: integer
+          example: 100

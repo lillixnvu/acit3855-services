@@ -11,13 +11,14 @@ from pykafka import KafkaClient
 from pykafka.common import OffsetType
 from threading import Thread
 import json
-import time
 
 with open('/config/app_conf.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
 
 with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
+    
+logging.config.dictConfig(log_config)
 
 logger = logging.getLogger('basicLogger')
 
@@ -29,11 +30,7 @@ port = db_conf['port']
 db = db_conf['db']
 
 ENGINE = create_engine(
-    f'mysql+pymysql://{user}:{password}@{hostname}:{port}/{db}',
-    pool_size=20,
-    max_overflow=40,
-    pool_pre_ping=True,
-    pool_recycle=3600
+    f'mysql+pymysql://{user}:{password}@{hostname}:{port}/{db}'
 )
 
 def make_session():
@@ -116,73 +113,54 @@ def get_purchase_readings(start_timestamp, end_timestamp):
 
 
 def process_messages():
-    """Process event messages from Kafka and store them in the DB."""
-    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
-    logger.info("Kafka consumer loop starting; target broker=%s topic=events",
-                hostname)
-    while True:
-        try:
-            client = KafkaClient(hosts=hostname)
-            topic = client.topics[str.encode("events")]
+    """ Process event messages """
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"    
+    logger.info(f"this is the host: {hostname}")
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode("events")]
+    # Create a consume on a consumer group, that only reads new messages
+    # (uncommitted messages) when the service re-starts (i.e., it doesn't
+    # read all the old messages from the history in the message queue).
 
-            consumer = topic.get_simple_consumer(
-                consumer_group=b'event_group',
-                reset_offset_on_start=False,
-                auto_offset_reset=OffsetType.LATEST
+    consumer = topic.get_simple_consumer(consumer_group=b'event_group', reset_offset_on_start=False, auto_offset_reset=OffsetType.LATEST)
+
+    # This is blocking - it will wait for a new message
+    for msg in consumer:
+        msg_str = msg.value.decode('utf-8')
+        msg = json.loads(msg_str)
+        logger.info(f"Message: {msg}" )
+        payload = msg["payload"]
+
+        if msg["type"] == "search_readings":
+            session = make_session()
+            sr = SearchReading(
+                trace_id=payload["trace_id"],
+                store_id=payload["store_id"],
+                store_name=payload["store_name"],
+                product_id=payload["product_id"],
+                search_count=payload["search_count"],
+                recorded_timestamp=payload["recorded_timestamp"]
             )
-            logger.info("Started Kafka consumer for topic events on %s", hostname)
+            session.add(sr)
+            session.commit()
+            session.close()
 
-            for msg in consumer:
-                if msg is None:
-                    continue
-                msg_str = msg.value.decode('utf-8')
-                msg_obj = json.loads(msg_str)
-                logger.info("Message: %s", msg_obj)
-                payload = msg_obj.get('payload')
-                mtype = msg_obj.get('type')
-                
-                session = None
-                try:
-                    # Dispatch based on message type
-                    if mtype == 'search_readings':
-                        session = make_session()
-                        sr = SearchReading(
-                            trace_id=payload["trace_id"],
-                            store_id=payload["store_id"],
-                            store_name=payload["store_name"],
-                            product_id=payload["product_id"],
-                            search_count=payload["search_count"],
-                            recorded_timestamp=payload["recorded_timestamp"]
-                        )
-                        session.add(sr)
-                        session.commit()
-                        logger.debug('Stored event search_reading with trace id %s', payload["trace_id"])
-
-                    elif mtype == 'purchase_readings':
-                        session = make_session()
-                        pr = PurchaseReading(
-                            trace_id=payload["trace_id"],
-                            store_id=payload["store_id"],
-                            store_name=payload["store_name"],
-                            product_id=payload["product_id"],
-                            purchase_count=payload["purchase_count"],
-                            recorded_timestamp=payload["recorded_timestamp"]
-                        )
-                        session.add(pr)
-                        session.commit()
-                        logger.debug('Stored event purchase_reading with trace id %s', payload["trace_id"])
-                    
-                    # commit that we've processed this message
-                    consumer.commit_offsets()
-                except Exception as e:
-                    logger.error("Error processing message: %s", e)
-                finally:
-                    if session:
-                        session.close()
-
-        except Exception as e:
-            logger.error("Kafka consumer error (%s). Retrying in 5s...", e)
-            time.sleep(5)
+        elif msg["type"] == "purchase_readings":
+            session = make_session()
+            pr = PurchaseReading(
+                trace_id=payload["trace_id"],
+                store_id=payload["store_id"],
+                store_name=payload["store_name"],
+                product_id=payload["product_id"],
+                purchase_count=payload["purchase_count"],
+                recorded_timestamp=payload["recorded_timestamp"]
+            )
+            session.add(pr)
+            session.commit()
+            session.close()
+            
+            logger.debug(f'Stored event purchase_reading with trace id {payload["trace_id"]}')
+        consumer.commit_offsets()
 
 def setup_kafka_thread():
     t1 = Thread(target=process_messages)
@@ -192,7 +170,7 @@ def setup_kafka_thread():
 
 
 app = connexion.FlaskApp(__name__, specification_dir='')
-app.add_api("grocery_api.yml")
+app.add_api("/config/grocery_api.yml")
 
 if __name__ == "__main__":
     setup_kafka_thread()

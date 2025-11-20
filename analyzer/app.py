@@ -11,6 +11,8 @@ with open('/config/app_conf.yml', 'r') as f:
 with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
 
+logging.config.dictConfig(log_config)
+
 logger = logging.getLogger('basicLogger')
 
 
@@ -121,7 +123,7 @@ def get_reading_stats():
 
 
 app = connexion.FlaskApp(__name__, specification_dir='')
-app.add_api("grocery_api.yml")
+app.add_api("/config/grocery_api.yml")
 
 if __name__ == "__main__":
     app.run(port=8110, host="0.0.0.0")

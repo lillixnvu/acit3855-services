@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   zookeeper:
     image: wurstmeister/zookeeper
@@ -41,15 +39,16 @@ services:
     build:
       context: ./receiver
       dockerfile: Dockerfile
-    # depends_on:
-    #   - kafka
-    # command: >
-    #   sh -c "./wait-for-it.sh kafka:9092 --timeout=60 -- python app.py"
+    depends_on:
+      - kafka
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8080:8080"
     volumes:
       - ./config/receiver/app_conf.yml:/config/app_conf.yml
       - ./config/receiver/log_conf.yml:/config/log_conf.yml
+      - ./config/receiver/grocery_api.yml:/config/grocery_api.yml
       - ./logs:/logs
 
   storage:
@@ -59,13 +58,15 @@ services:
     depends_on:
       - db
       - kafka
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8090:8090"
     volumes:
       - ./config/storage/app_conf.yml:/config/app_conf.yml
       - ./config/storage/log_conf.yml:/config/log_conf.yml
+      - ./config/storage/grocery_api.yml:/config/grocery_api.yml
       - ./logs:/logs
-
 
   processing:
     build:
@@ -73,11 +74,14 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - storage
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8100:8100"
     volumes:
       - ./config/processing/app_conf.yml:/config/app_conf.yml
       - ./config/processing/log_conf.yml:/config/log_conf.yml
+      - ./config/processing/grocery_api.yml:/config/grocery_api.yml
       - ./logs:/logs
       - ./data/processing:/data
 
@@ -87,11 +91,14 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - kafka
+    environment:
+      - TARGET_ENV=test
     ports:
       - "8110:8110"
     volumes:
       - ./config/analyzer/app_conf.yml:/config/app_conf.yml
       - ./config/analyzer/log_conf.yml:/config/log_conf.yml
+      - ./config/analyzer/grocery_api.yml:/config/grocery_api.yml
       - ./logs:/logs
 
 volumes:
