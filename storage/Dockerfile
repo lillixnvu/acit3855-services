@@ -23,8 +23,5 @@ USER nobody
 # Tells on which port the service listens in the container
 EXPOSE 8090
 
-# Entrypoint = run Python
-ENTRYPOINT [ "python3" ]
 
-# Default = run app.py
-CMD [ "app.py" ]
+CMD python3 create_tables.py && python3 app.py
