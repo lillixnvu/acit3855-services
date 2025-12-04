@@ -119,6 +119,7 @@ services:
       - ./config/analyzer/log_conf.yml:/config/log_conf.yml
       - ./config/analyzer/grocery_api.yml:/config/grocery_api.yml
       - ./logs:/logs
+      - /data/analyzer:/data
       
   dashboard:
     build: ./dashboard-ui
