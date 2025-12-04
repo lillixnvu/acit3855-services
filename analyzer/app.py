@@ -2,7 +2,6 @@ import connexion
 import yaml
 import logging
 import logging.config
-import json
 import httpx
 from datetime import datetime
 from connexion.middleware import MiddlewarePosition
@@ -15,61 +14,123 @@ with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
 
 logging.config.dictConfig(log_config)
-logger = logging.getLogger('basicLogger')
+logger = logging.getLogger("basicLogger")
 
 
-def get_reading_stats():
+def get_stats():
     """
-    Return total counts of search and purchase readings from STORAGE.
+    Returns overall statistics: total number of
+    search and purchase readings.
     """
-    logger.info("Request for analyzer statistics received")
+    logger.info("Analyzer: Fetching statistics")
 
-    now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
-
-    # Use a very early timestamp to read ALL data
+    # Query full history
     start_ts = "2000-01-01T00:00:00.000Z"
+    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
 
-    # GET SEARCH READINGS
+    # SEARCH READINGS
     search_url = app_config['eventstores']['search']['url']
-    search_response = httpx.get(
-        search_url,
-        params={"start_timestamp": start_ts, "end_timestamp": now}
-    )
+    search_res = httpx.get(search_url, params={
+        "start_timestamp": start_ts,
+        "end_timestamp": end_ts
+    })
 
     num_search = 0
-    if search_response.status_code == 200:
-        search_readings = search_response.json()
-        num_search = len(search_readings)
-        logger.info(f"Retrieved {num_search} search readings")
-    else:
-        logger.error("Failed to retrieve search readings")
+    if search_res.status_code == 200:
+        num_search = len(search_res.json())
 
-    # GET PURCHASE READINGS 
+    # PURCHASE READINGS
     purchase_url = app_config['eventstores']['purchase']['url']
-    purchase_response = httpx.get(
-        purchase_url,
-        params={"start_timestamp": start_ts, "end_timestamp": now}
-    )
+    purchase_res = httpx.get(purchase_url, params={
+        "start_timestamp": start_ts,
+        "end_timestamp": end_ts
+    })
 
     num_purchase = 0
-    if purchase_response.status_code == 200:
-        purchase_readings = purchase_response.json()
-        num_purchase = len(purchase_readings)
-        logger.info(f"Retrieved {num_purchase} purchase readings")
-    else:
-        logger.error("Failed to retrieve purchase readings")
+    if purchase_res.status_code == 200:
+        num_purchase = len(purchase_res.json())
 
     stats = {
         "num_search_readings": num_search,
         "num_purchase_readings": num_purchase
     }
 
-    logger.info(f"Stats returned: {stats}")
-
+    logger.info(f"Analyzer stats response: {stats}")
     return stats, 200
 
 
-app = connexion.FlaskApp(__name__, specification_dir='')
+def get_recent_search(index):
+    """
+    Returns a search reading by reverse index:
+    index=0 → most recent
+    index=1 → second most recent
+    """
+    logger.info(f"Analyzer: Fetching search reading index {index}")
+
+    # Query full history
+    start_ts = "2000-01-01T00:00:00.000Z"
+    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
+
+    search_url = app_config['eventstores']['search']['url']
+    res = httpx.get(search_url, params={
+        "start_timestamp": start_ts,
+        "end_timestamp": end_ts
+    })
+
+    if res.status_code != 200:
+        return {"message": "Unable to retrieve search readings"}, 404
+
+    readings = res.json()
+
+    if len(readings) == 0:
+        return {"message": "No search readings available"}, 404
+
+    # Sort by timestamp (oldest → newest)
+    readings.sort(key=lambda x: x["recorded_timestamp"])
+
+    # Reverse index handling
+    if index >= len(readings):
+        return {"message": f"No search event at index {index}"}, 404
+
+    result = readings[-(index + 1)]
+    return result, 200
+
+
+def get_recent_purchase(index):
+    """
+    Returns a purchase reading by reverse index:
+    index=0 → most recent
+    """
+    logger.info(f"Analyzer: Fetching purchase reading index {index}")
+
+    start_ts = "2000-01-01T00:00:00.000Z"
+    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
+
+    purchase_url = app_config['eventstores']['purchase']['url']
+    res = httpx.get(purchase_url, params={
+        "start_timestamp": start_ts,
+        "end_timestamp": end_ts
+    })
+
+    if res.status_code != 200:
+        return {"message": "Unable to retrieve purchase readings"}, 404
+
+    readings = res.json()
+
+    if len(readings) == 0:
+        return {"message": "No purchase readings available"}, 404
+
+    readings.sort(key=lambda x: x["recorded_timestamp"])
+
+    if index >= len(readings):
+        return {"message": f"No purchase event at index {index}"}, 404
+
+    result = readings[-(index + 1)]
+    return result, 200
+
+
+# App Setup 
+app = connexion.FlaskApp(__name__, specification_dir="")
 
 app.add_middleware(
     CORSMiddleware,
