@@ -2,10 +2,11 @@ import connexion
 import yaml
 import logging
 import logging.config
-import httpx
-from datetime import datetime
-from connexion.middleware import MiddlewarePosition
+from pykafka import KafkaClient
+import json
+from connexion.middleware import MiddlewarePosition 
 from starlette.middleware.cors import CORSMiddleware
+
 
 with open('/config/app_conf.yml', 'r') as f:
     app_config = yaml.safe_load(f.read())
@@ -14,123 +15,118 @@ with open('/config/log_conf.yml', 'r') as f:
     log_config = yaml.safe_load(f.read())
 
 logging.config.dictConfig(log_config)
-logger = logging.getLogger("basicLogger")
 
-
-def get_reading_stats():
-    """
-    Returns overall statistics: total number of
-    search and purchase readings.
-    """
-    logger.info("Analyzer: Fetching statistics")
-
-    # Query full history
-    start_ts = "2000-01-01T00:00:00.000Z"
-    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
-
-    # SEARCH READINGS
-    search_url = app_config['eventstores']['search']['url']
-    search_res = httpx.get(search_url, params={
-        "start_timestamp": start_ts,
-        "end_timestamp": end_ts
-    })
-
-    num_search = 0
-    if search_res.status_code == 200:
-        num_search = len(search_res.json())
-
-    # PURCHASE READINGS
-    purchase_url = app_config['eventstores']['purchase']['url']
-    purchase_res = httpx.get(purchase_url, params={
-        "start_timestamp": start_ts,
-        "end_timestamp": end_ts
-    })
-
-    num_purchase = 0
-    if purchase_res.status_code == 200:
-        num_purchase = len(purchase_res.json())
-
-    stats = {
-        "num_search_readings": num_search,
-        "num_purchase_readings": num_purchase
-    }
-
-    logger.info(f"Analyzer stats response: {stats}")
-    return stats, 200
+logger = logging.getLogger('basicLogger')
 
 
 def get_search_readings(index):
-    """
-    Returns a search reading by reverse index:
-    index=0 → most recent
-    index=1 → second most recent
-    """
-    logger.info(f"Analyzer: Fetching search reading index {index}")
+    """Get a search reading at a specific index"""
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config['events']['topic'])]
+    
+    consumer = topic.get_simple_consumer(
+        reset_offset_on_start=True,
+        consumer_timeout_ms=1000
+    )
 
-    # Query full history
-    start_ts = "2000-01-01T00:00:00.000Z"
-    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
+    logger.info(f"Retrieving search event at index {index}")
 
-    search_url = app_config['eventstores']['search']['url']
-    res = httpx.get(search_url, params={
-        "start_timestamp": start_ts,
-        "end_timestamp": end_ts
-    })
+    search_index_counter = 0
 
-    if res.status_code != 200:
-        return {"message": "Unable to retrieve search readings"}, 404
+    try:
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg_dict = json.loads(msg_str)
+            
+            # Check the message type
+            if msg_dict.get("type") == "search_readings":
+                if search_index_counter == index:
+                    logger.info(f"Found search event at index {index}")
+                    return msg_dict["payload"], 200
+                search_index_counter += 1
+                
+    except Exception as e:
+        logger.error(f"Error reading from Kafka: {e}")
 
-    readings = res.json()
-
-    if len(readings) == 0:
-        return {"message": "No search readings available"}, 404
-
-    # Sort by timestamp (oldest → newest)
-    readings.sort(key=lambda x: x["recorded_timestamp"])
-
-    # Reverse index handling
-    if index >= len(readings):
-        return {"message": f"No search event at index {index}"}, 404
-
-    result = readings[-(index + 1)]
-    return result, 200
+    logger.error(f"No search event found at index {index}")
+    return {"message": f"No event at index {index}!"}, 404
 
 
 def get_purchase_readings(index):
-    """
-    Returns a purchase reading by reverse index:
-    index=0 → most recent
-    """
-    logger.info(f"Analyzer: Fetching purchase reading index {index}")
+    """Get a purchase reading at a specific index"""
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config['events']['topic'])]
+    
+    consumer = topic.get_simple_consumer(
+        reset_offset_on_start=True,
+        consumer_timeout_ms=1000
+    )
 
-    start_ts = "2000-01-01T00:00:00.000Z"
-    end_ts = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%fZ")[:-3]
+    logger.info(f"Retrieving purchase event at index {index}")
 
-    purchase_url = app_config['eventstores']['purchase']['url']
-    res = httpx.get(purchase_url, params={
-        "start_timestamp": start_ts,
-        "end_timestamp": end_ts
-    })
+    purchase_index_counter = 0
 
-    if res.status_code != 200:
-        return {"message": "Unable to retrieve purchase readings"}, 404
+    try:
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg_dict = json.loads(msg_str)
+            
+            # Check the message type
+            if msg_dict.get("type") == "purchase_readings":
+                if purchase_index_counter == index:
+                    logger.info(f"Found purchase event at index {index}")
+                    return msg_dict["payload"], 200
+                purchase_index_counter += 1
+                
+    except Exception as e:
+        logger.error(f"Error reading from Kafka: {e}")
 
-    readings = res.json()
-
-    if len(readings) == 0:
-        return {"message": "No purchase readings available"}, 404
-
-    readings.sort(key=lambda x: x["recorded_timestamp"])
-
-    if index >= len(readings):
-        return {"message": f"No purchase event at index {index}"}, 404
-
-    result = readings[-(index + 1)]
-    return result, 200
+    logger.error(f"No purchase event found at index {index}")
+    return {"message": f"No event at index {index}!"}, 404
 
 
-# App Setup 
-app = connexion.FlaskApp(__name__, specification_dir="")
+def get_reading_stats():
+    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
+    client = KafkaClient(hosts=hostname)
+    topic = client.topics[str.encode(app_config['events']['topic'])]
+    
+    consumer = topic.get_simple_consumer(
+        reset_offset_on_start=True,
+        consumer_timeout_ms=1000
+    )
+
+    logger.info("Retrieving event statistics")
+
+    num_search_readings = 0
+    num_purchase_readings = 0
+
+    try:
+        for msg in consumer:
+            msg_str = msg.value.decode('utf-8')
+            msg_dict = json.loads(msg_str)
+            
+            if msg_dict.get("type") == "search_readings":
+                num_search_readings += 1
+            elif msg_dict.get("type") == "purchase_readings":
+                num_purchase_readings += 1
+
+        stats = {
+            "num_search_readings": num_search_readings,
+            "num_purchase_readings": num_purchase_readings
+        }
+
+        logger.info(f"Stats retrieved: {stats}")
+        return stats, 200
+
+    except Exception as e:
+        logger.error(f"Error reading stats from Kafka: {e}")
+        return {"message": "Error retrieving stats"}, 500
+
+
+app = connexion.FlaskApp(__name__, specification_dir='')
+app = connexion.FlaskApp(__name__, specification_dir='')
 
 app.add_middleware(
     CORSMiddleware,
