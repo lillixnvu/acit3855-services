@@ -161,8 +161,6 @@ def get_purchase_readings(start_timestamp, end_timestamp):
     return results, 200
 
 
-
-
 def process_messages():
     hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
     kafka_wrapper = KafkaWrapper(hostname, b"events")
