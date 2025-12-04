@@ -77,11 +77,10 @@ def get_search_readings(index):
 
 def get_purchase_readings(index):
     """Get a purchase reading at a specific index"""
-    hostname = f"{app_config['events']['hostname']}:{app_config['events']['port']}"
-    client = KafkaClient(hosts=hostname)
-    topic = client.topics[str.encode(app_config['events']['topic'])]
-    
-    consumer = topic.get_simple_consumer(
+    if t_topic is None:
+        return {"message": "Kafka connection unavailable"}, 500
+
+    consumer = t_topic.get_simple_consumer(
         reset_offset_on_start=True,
         consumer_timeout_ms=1000
     )

@@ -13,8 +13,6 @@ services:
       timeout: 5s
       retries: 5
 
-
-
   kafka:
     image: wurstmeister/kafka
     ports:
